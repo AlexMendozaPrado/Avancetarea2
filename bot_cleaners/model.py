@@ -50,6 +50,7 @@ class RobotLimpieza(Agent):
 
         def step(self):
             # Si el robot está cargando, incrementar la batería
+            self.movimientos += 1
             if self.estoy_cargando() == True :
                 print(f"Robot {self.unique_id} is charging.")
                 self.carga = min(100, self.carga + 25)  # Suponiendo que se carga un 25% por step
@@ -398,7 +399,7 @@ class Habitacion(Model):
             return self.current_id
       def agregar_estaciones_carga(self):
             # Determinar el número de estaciones de carga necesarias
-            num_estaciones = (self.grid.width * self.grid.height) // 4
+            num_estaciones = (self.grid.width * self.grid.height) // 100
 
             # Añadir estaciones de carga
             for _ in range(num_estaciones):
