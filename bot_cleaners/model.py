@@ -4,6 +4,8 @@ from mesa.space import MultiGrid
 from mesa.time import SimultaneousActivation
 from mesa.datacollection import DataCollector
 from collections import deque
+import math
+
 
 
 import numpy as np
@@ -49,10 +51,9 @@ class RobotLimpieza(Agent):
                     break  # Suponiendo que solo hay una celda en la posición
 
         def step(self):
-            # Si el robot está cargando, incrementar la batería
+            # Si el robot está cargando, incrementar la 
             self.movimientos += 1
             if self.estoy_cargando() == True :
-                print(f"Robot {self.unique_id} is charging.")
                 self.carga = min(100, self.carga + 25)  # Suponiendo que se carga un 25% por step
                 return  # No hacer más acciones si está cargando
 
@@ -71,14 +72,15 @@ class RobotLimpieza(Agent):
                 estacion_cercana = self.encontrar_estacion_carga_mas_cercana()
                 if estacion_cercana:
                     self.ruta_planeada = self.algoritmo_a_estrella(self.pos, estacion_cercana.pos)
+                    print(self.ruta_planeada)  # Imprime la ruta planeada
 
             # Mover el robot a lo largo de la ruta planeada
             self.mover_a_siguiente_posicion_en_ruta()
             self.limpiar_celda_actual()  # Limpia la celda si es necesario
             # Comunicar ruta y resolver conflictos (aunque en tu caso no se comuniquen)
             # Suponiendo que tienes una función para comunicar la ruta planeada
-            self.comunicar_ruta()
-            self.actualizar_ruta()
+           # self.comunicar_ruta()
+            #self.actualizar_ruta()
             #self.resolver_deadlocks()
         def verificar_ruta(self):
             for pos in self.ruta_planeada:
@@ -92,11 +94,10 @@ class RobotLimpieza(Agent):
             # Create a list of coordinates from the objects in the current cell
             coordenadas_celda_actual = [obj.pos for obj in contenido_celda_actual]
             
-            print(f"Robot {self.unique_id} at {self.pos} sees objects at: {coordenadas_celda_actual}")
             
             # Imprimir todos los objetos en la celda actual
-            print(f"Objetos en la celda actual: {contenido_celda_actual}")
             
+            # Comprobar si hay una instancia de EstacionCarga en la celda
             en_estacion_carga = any(isinstance(obj, EstacionCarga) for obj in contenido_celda_actual)
             
             # Comprobar si hay una instancia de EstacionCarga en la celda
@@ -218,7 +219,7 @@ class RobotLimpieza(Agent):
                     nueva_pos = (pos[0] + dx, pos[1] + dy)
                     if (0 <= nueva_pos[0] < self.model.grid.width and
                         0 <= nueva_pos[1] < self.model.grid.height and
-                        nueva_pos not in visitados):
+                        nueva_pos not in visitados and self.model.is_cell_empty(nueva_pos)):
                         cola.append(nueva_pos)
                         visitados.add(nueva_pos)
 
@@ -295,7 +296,7 @@ class RobotLimpieza(Agent):
 
         def obtener_vecinos(self, pos, evitar_obstaculos=True):
             vecinos = []
-            direcciones = [(1, 0), (-1, 0), (0, 1), (0, -1)]  # Movimientos posibles
+            direcciones = [(0, 1), (1, 0), (0, -1), (-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]  # Movimientos posibles
             for dx, dy in direcciones:
                 x, y = pos[0] + dx, pos[1] + dy
                 if 0 <= x < self.model.grid.width and 0 <= y < self.model.grid.height:
@@ -372,8 +373,11 @@ class Habitacion(Model):
               self.schedule.add(robot)       
 
           self.datacollector = DataCollector(
-               model_reporters={"Grid": Habitacion.get_grid, "Cargas": Habitacion.get_cargas,
-                               "CeldasSucias": Habitacion.get_sucias},
+               model_reporters={"Grid": Habitacion.get_grid, 
+                                "Cargas": Habitacion.get_cargas,
+                                "CeldasSucias": Habitacion.get_sucias, 
+                                "MovimientosTotales": Habitacion.get_movimientos_totales,
+                                "BateriaRestante": Habitacion.get_bateria},
           )
           self.agregar_estaciones_carga()
       
@@ -389,7 +393,7 @@ class Habitacion(Model):
 
                 # Considera la celda "vacía" si solo contiene agentes que no bloquean el movimiento
           for agent in cell_contents:
-              if isinstance(agent, (Mueble, RobotLimpieza)):
+              if isinstance(agent, (Mueble, RobotLimpieza, EstacionCarga)):
                  return False  # La celda está bloqueada
 
           return True  # La celda contiene agentes, pero son del tipo no bloqueante
@@ -401,13 +405,13 @@ class Habitacion(Model):
             # Determinar el número de estaciones de carga necesarias
             num_estaciones = (self.grid.width * self.grid.height) // 100
 
+
             # Añadir estaciones de carga
             for _ in range(num_estaciones):
                 pos = self.seleccionar_posicion_para_estacion()
                 estacion = EstacionCarga(self.next_id(), self)
                 self.grid.place_agent(estacion, pos)
                 self.estaciones_carga.append(estacion)
-                print(f"Estación de carga agregada en la posición {pos}")
 
             # Verificar que cada estación de carga se ha agregado correctamente
             for estacion in self.estaciones_carga:
@@ -446,6 +450,17 @@ class Habitacion(Model):
       @staticmethod      
       def get_cargas(model: Model):
            return [(agent.unique_id, agent.carga) for agent in model.schedule.agents]
+
+      @staticmethod
+      def get_movimientos_totales(model: Model):
+            total_movimientos = sum(agent.movimientos for agent in model.schedule.agents if isinstance(agent, RobotLimpieza))
+            return total_movimientos
+      
+      @staticmethod
+      def get_bateria(model: Model):
+            carga_restante = sum(agent.carga for agent in model.schedule.agents if isinstance(agent, RobotLimpieza))
+            return carga_restante
+
       @staticmethod
       def get_sucias(model: Model) -> int:
             sum_sucias = 0
@@ -460,11 +475,3 @@ class Habitacion(Model):
                 return {agent.unique_id: agent.movimientos}
                         # else:
                         #    return 0   
-                       
-                   
-
-            
-
-            
-
-        

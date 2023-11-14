@@ -30,10 +30,21 @@ def agent_portrayal(agent):
 
 grid = mesa.visualization.CanvasGrid(
     agent_portrayal, 20, 20, 400, 400)
+
 chart_celdas = mesa.visualization.ChartModule(
     [{"Label": "CeldasSucias", "Color": '#36A2EB', "label": "Celdas Sucias"}],
     50, 200,
     data_collector_name="datacollector"
+)
+
+chart_movimientos = mesa.visualization.ChartModule(
+    [{"Label": "MovimientosTotales", "Color": "green"}],
+    data_collector_name = "datacollector"
+)
+
+chart_bateria = mesa.visualization.ChartModule(
+    [{"Label": "BateriaRestante", "Color": "Blue"}],
+    data_collector_name = "datacollector"
 )
 
 model_params = {
@@ -72,6 +83,6 @@ model_params = {
 } 
 
 server = mesa.visualization.ModularServer(
-    Habitacion, [grid, chart_celdas],
+    Habitacion, [grid, chart_celdas, chart_movimientos, chart_bateria],
     "botCleaner", model_params, 8525
 )
