@@ -16,20 +16,20 @@ class Celda(Agent):
         self.sucia = sucia
 
 class Caja(Agent):
-    def _init_(self,unique_id,model):
+    def __init__(self,unique_id,model):
         super().__init__(unique_id,model)
         self.sig_pos = None
 
 
 class Estante(Agent):
-    def _init_(self,unique_id,model):
+    def __init__(self,unique_id,model):
         super().__init__(unique_id,model)
         
 
 class Banda(Agent):
-    def _init_(self,unique_id,model):
+    def __init__(self,unique_id,model, robot_id = None):
         super().__init__(unique_id,model)
-        
+
 
 class EstacionCarga(Agent):
       def __init__(self, unique_id, model):
@@ -55,8 +55,9 @@ class Mueble(Agent):
 class RobotLimpieza(Agent):
         TIEMPO_ESPERA = 5  # Definir un tiempo de espera
         LIMITE_REPLANIFICACIONES = 100  # Definir un límite de replanificaciones
-        def __init__(self, unique_id, model):
+        def __init__(self, unique_id, model, banda_id = None):
             super().__init__(unique_id, model)
+            self.banda_id = banda_id
             self.sig_pos = None
             self.contador_espera = 0  # Inicializar el contador de espera
             self.movimientos = 0
@@ -431,6 +432,13 @@ class Habitacion(Model):
           self.schedule = SimultaneousActivation(self)
 
           posiciones_disponibles = [pos for _, pos in self.grid.coord_iter()]
+        # Posicionamiento de bandas
+          posiciones_banda_entrada = [(0,0), (1,0), (2, 0), (3, 0), (4, 0)]
+          for pos in posiciones_banda_entrada:
+              banda = Banda(self.next_id(), self)
+              self.grid.place_agent(banda, pos)
+              posiciones_disponibles.remove(pos)
+
         # Posicionamiento de muebles
           num_muebles = int(M * N * porc_muebles)
           posiciones_muebles = self.random.sample(posiciones_disponibles, k=num_muebles)
@@ -454,9 +462,9 @@ class Habitacion(Model):
              pos_inicial_robots = self.random.sample(posiciones_disponibles, k=num_agentes)
           else:  # 'Fija'
                pos_inicial_robots = [(1, 1)] * num_agentes
-
+          
           for id in range(num_agentes):
-              robot = RobotLimpieza(id, self)
+              robot = RobotLimpieza(self.next_id(), self)
               self.grid.place_agent(robot, pos_inicial_robots[id])
               self.schedule.add(robot)       
 
