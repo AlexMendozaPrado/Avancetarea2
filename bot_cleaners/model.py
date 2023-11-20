@@ -5,6 +5,7 @@ from mesa.time import SimultaneousActivation
 from mesa.datacollection import DataCollector
 from collections import deque
 import math
+import random
 
 
 
@@ -16,9 +17,10 @@ class Celda(Agent):
         self.sucia = sucia
 
 class Caja(Agent):
-    def __init__(self,unique_id,model):
+    def __init__(self,unique_id,model, estante_id = None):
         super().__init__(unique_id,model)
         self.sig_pos = None
+        self.estante_id = estante_id
 
 
 class Estante(Agent):
@@ -30,7 +32,15 @@ class Banda(Agent):
     def __init__(self,unique_id,model, robot_id = None):
         super().__init__(unique_id,model)
         self.tiene_caja = False
-        
+        self.robot_id = robot_id
+    def step(self):
+        if not self.tiene_caja:
+            nueva_caja = self.model.cajas.pop(0) if len(self.model.cajas) > 0 else None
+            if nueva_caja:
+                self.model.grid.place_agent(nueva_caja, self.pos)
+                self.tiene_caja = True
+                self.robot_id = nueva_caja.estante_id
+                self.model.schedule.add(nueva_caja)
 
 
 
@@ -413,9 +423,6 @@ class RobotLimpieza(Agent):
             ruta.reverse()  # The path is reconstructed backwards, so we need to reverse it at the end
             return ruta
 
-       
-
-
 class Habitacion(Model):
       def __init__(self, M: int, N: int,
                    num_agentes: int = 5,
@@ -429,50 +436,72 @@ class Habitacion(Model):
           self.num_agentes = num_agentes
           self.porc_celdas_sucias = porc_celdas_sucias
           self.porc_muebles = porc_muebles
-          self.estantes = []
+          self.ids_estantes = []
           self.cajas = []
           self.grid = MultiGrid(M, N, False)
           self.schedule = SimultaneousActivation(self)
+          self.posiciones_cargadores = []
+          self.num_agentes = num_agentes
 
-          posiciones_disponibles = [pos for _, pos in self.grid.coord_iter()]
-        # Posicionamiento de bandas
-          posiciones_banda_entrada = [(3,14), (5,14), (7,14), (9,14), (11,14)]
-          for pos in posiciones_banda_entrada:
-              banda = Banda(self.next_id(), self)
-              self.grid.place_agent(banda, pos)
-              posiciones_disponibles.remove(pos)
+          self.iniciar_bandas()
+          self.iniciar_estantes()
+          self.iniciar_cargadores()
+          self.iniciar_robots()
+          self.iniciar_cajas()
+        # Iniciar cajas
+          self.iniciar_cajas()
 
-        #Posicionamiento estantes
-          posiciones_estantes = [(3,7), (5,7), (7, 7), (9, 7), (11, 7)]
-          for pos in posiciones_estantes:
-              estante = Estante(self.next_id(), self)
-              self.grid.place_agent(estante, pos)
+          
+      def iniciar_cajas(self):
+        cajas_estante = {}
+        for _ in range(15):
+            id_estante = None
+            while True:
+                id_estante = random.choice(self.ids_estantes)
+                if id_estante not in cajas_estante or cajas_estante[id_estante] <= 3:
+                    break
+            if id_estante not in cajas_estante:
+                cajas_estante[id_estante] = 1
+            else:
+                cajas_estante[id_estante] += 1
+            caja = Caja(self.next_id(), self, id_estante)
+            self.cajas.append(caja)    
 
-        #Posicionamiento de cargadores
-          posiciones_cargadores = []
+            
+      def iniciar_robots(self):
+          for pos in self.posiciones_cargadores:
+              robot = RobotLimpieza(self.next_id(), self)
+              self.grid.place_agent(robot, pos)
+              self.schedule.add(robot)      
+
+      def iniciar_cargadores(self):
           pos_y_cargador = 11
-          for i in range(num_agentes):
+          for i in range(self.num_agentes):
               if i % 2 == 0:
                   pos = (0, pos_y_cargador)
-                  posiciones_cargadores.append(pos)
+                  self.posiciones_cargadores.append(pos)
               else:
                   pos = (14, pos_y_cargador)
-                  posiciones_cargadores.append(pos)
+                  self.posiciones_cargadores.append(pos)
                   pos_y_cargador -= 2
 
               cargador = EstacionCarga(self.next_id(), self)
               self.grid.place_agent(cargador, pos)
-              posiciones_disponibles.remove(pos)
 
-        # Iniciar cajas
-
-          
-        # Posicionamiento de muebles
-          
-          for pos in posiciones_cargadores:
-              robot = RobotLimpieza(self.next_id(), self)
-              self.grid.place_agent(robot, pos)
-              self.schedule.add(robot)       
+      def iniciar_estantes(self):
+          posiciones_estantes = [(3,7), (5,7), (7, 7), (9, 7), (11, 7)]
+          for pos in posiciones_estantes:
+              estante = Estante(self.next_id(), self)
+              self.grid.place_agent(estante, pos)
+              self.schedule.add(estante)
+              self.ids_estantes.append(estante.unique_id)
+      
+      def iniciar_bandas(self):
+          posiciones_banda_entrada = [(3,14), (5,14), (7,14), (9,14), (11,14)]
+          for pos in posiciones_banda_entrada:
+              banda = Banda(self.next_id(), self)
+              self.grid.place_agent(banda, pos)
+              self.schedule.add(banda)
       
       def is_cell_empty(self, pos):
           """

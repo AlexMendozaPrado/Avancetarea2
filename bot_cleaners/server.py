@@ -27,8 +27,14 @@ def agent_portrayal(agent):
             portrayal["text"] = ""
         return portrayal
     elif isinstance(agent, Banda):
-        return {"Shape": "rect", "Filled": "true", "Color": "red", "Layer": 0,
-                "w": 0.9, "h": 0.9, "text": "🚧", "text_color": "Black"}
+        portrayal = {"Shape": "rect", "Filled": "true", "Layer": "1", "w": 0.9, "h": 0.9, "text_color": "Red"}
+        if agent.tiene_caja:
+            portrayal["Color"] = "Brown"
+            portrayal["text"] = "📦"
+        else:
+            portrayal["Color"] = "Red"
+            portrayal["text"] = ""
+        return portrayal
     elif isinstance(agent, Estante):
         return {"Shape": "rect", "Filled": "true", "Color": "grey", "Layer": 0,
                 "w": 0.9, "h": 0.9, "text": "🗄️", "text_color": "Black"}
