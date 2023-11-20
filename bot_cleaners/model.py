@@ -432,6 +432,8 @@ class Habitacion(Model):
           super().__init__()
           self.current_id = 0
           self.estaciones_carga = []
+          self.bandas_recoleccion = []
+          self.estantes = []
           self.num_agentes = num_agentes
           self.porc_celdas_sucias = porc_celdas_sucias
           self.porc_muebles = porc_muebles
@@ -497,6 +499,7 @@ class Habitacion(Model):
               self.grid.place_agent(estante, pos)
               self.schedule.add(estante)
               self.ids_estantes.append(estante.unique_id)
+              self.estantes.append(estante)
       
       def iniciar_bandas(self):
           posiciones_banda_entrada = [(3,14), (5,14), (7,14), (9,14), (11,14)]
