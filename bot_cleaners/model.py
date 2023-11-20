@@ -19,6 +19,17 @@ class Celda(Agent):
 class EstacionCarga(Agent):
       def __init__(self, unique_id, model):
           super().__init__(unique_id, model)
+          self.reservada = False  # Añadir esta línea para el estado de reserva
+          self.robot_reservante = None
+
+
+      def reservar(self, robot):
+            self.reservada = True
+            self.robot_reservante = robot
+
+      def liberar(self):
+        self.reservada = False
+        self.robot_reservante = None
 
 
 class Mueble(Agent):
@@ -28,17 +39,20 @@ class Mueble(Agent):
 
 class RobotLimpieza(Agent):
         TIEMPO_ESPERA = 5  # Definir un tiempo de espera
-        LIMITE_REPLANIFICACIONES = 3  # Definir un límite de replanificaciones
+        LIMITE_REPLANIFICACIONES = 100  # Definir un límite de replanificaciones
         def __init__(self, unique_id, model):
             super().__init__(unique_id, model)
             self.sig_pos = None
             self.contador_espera = 0  # Inicializar el contador de espera
             self.movimientos = 0
-            self.carga = 100
+            self.carga = 21
             self.umbral_bateria = 20  # Ejemplo de umbral de batería
             self.ruta_planeada = []  # Añadir para guardar la ruta planeada
             self.estacion_carga = None  # Añadir para ubicar la estación de carga
             self.necesita_cargar = True  # Or some initial value based on your logic
+            self.contador_replanificaciones = 0  # Inicializar el contador de replanificaciones
+            self.estacion_reservada = None
+            self.estaciones_carga_reservadas = [] # Añadir para almacenar las estaciones reservadas
 
 
 
@@ -51,27 +65,31 @@ class RobotLimpieza(Agent):
                     break  # Suponiendo que solo hay una celda en la posición
 
         def step(self):
-            # Si el robot está cargando, incrementar la 
-            self.movimientos += 1
+            # Si el robot está cargando, incrementar la batería
             if self.estoy_cargando() == True :
                 self.carga = min(100, self.carga + 25)  # Suponiendo que se carga un 25% por step
                 return  # No hacer más acciones si está cargando
 
             # Planificar ruta hacia celda sucia si no hay ruta planeada
             if not self.ruta_planeada:
-                celda_sucia = self.encontrar_celda_sucia_mas_cercana()
+                celda_sucia = self.encontrar_celda_sucia_mas_cercana() ###cAMBIAR POR RECOGER CAJA
                 if celda_sucia is not None:
                     self.ruta_planeada = [celda_sucia]
+                    #print("ruta planeada" + str(self.ruta_planeada))
                 else:
                     self.ruta_planeada = []
                 self.verificar_ruta()
+                #si tiene batteria para ir por la caja, dejarla, y luego cargarse, ir por la caja, si no cargarse
 
 
             # Verificar nivel de batería y planificar ruta hacia estación de carga si es necesario
-            if self.carga < self.umbral_bateria: 
+            if self.carga < self.umbral_bateria and not self.estacion_reservada: 
+                self.necesita_cargar = True 
                 estacion_cercana = self.encontrar_estacion_carga_mas_cercana()
                 if estacion_cercana:
+                    self.reservar_estacion_carga(estacion_cercana)
                     self.ruta_planeada = self.algoritmo_a_estrella(self.pos, estacion_cercana.pos)
+                    print(self.ruta_planeada)
                     print(self.ruta_planeada)  # Imprime la ruta planeada
 
             # Mover el robot a lo largo de la ruta planeada
@@ -79,8 +97,8 @@ class RobotLimpieza(Agent):
             self.limpiar_celda_actual()  # Limpia la celda si es necesario
             # Comunicar ruta y resolver conflictos (aunque en tu caso no se comuniquen)
             # Suponiendo que tienes una función para comunicar la ruta planeada
-           # self.comunicar_ruta()
-            #self.actualizar_ruta()
+            self.comunicar_ruta()
+            self.actualizar_ruta()
             #self.resolver_deadlocks()
         def verificar_ruta(self):
             for pos in self.ruta_planeada:
@@ -104,23 +122,34 @@ class RobotLimpieza(Agent):
             if en_estacion_carga:
                 print(f"Robot {self.unique_id} ha encontrado una estación de carga en la celda {self.pos}")
             
-            print(f"Robot {self.unique_id} charging status: {en_estacion_carga}")
+            
             # Retorna True si está en una estación de carga
             return en_estacion_carga and self.carga < 100
         
-        def comunicar_ruta(self):
-            # Enviar información de ruta a otros robots
-             for robot in self.model.schedule.agents:
-                 if robot != self and isinstance(robot, RobotLimpieza):
-                        robot.recibir_ruta(self.ruta_planeada, self)
         
+        
+        def comunicar_ruta(self):
+             # Enviar información de ruta a otros robots
+            for robot in self.model.schedule.agents:
+                if robot != self and isinstance(robot, RobotLimpieza):
+                    # No incluir la estación reservada en la ruta comunicada
+                    robot.recibir_ruta(self.ruta_planeada, self)
+                
 
         def recibir_ruta(self, ruta_otro_robot, otro_robot):
             # Detectar colisión y negociar una nueva ruta si es necesario
             if self.detectar_colision(ruta_otro_robot):
                self.resolver_conflicto(otro_robot)
+            # Comprobar si la ruta recibida incluye la estación de carga que este robot ha reservado
+            elif any(estacion for estacion in self.model.estaciones_carga if estacion.pos in ruta_otro_robot and estacion.reservada and estacion.robot_reservante == self):
+                self.resolver_conflicto(otro_robot)  # Considerar esto como un conflicto y replanificar la ruta
 
         def resolver_conflicto(self, otro_robot):
+
+            if self.estacion_reservada and self.estacion_reservada.reservada and self.estacion_reservada.robot_reservante != self:
+                # Si la estación de carga está reservada por otro robot, replanificar sin incrementar el contador
+                self.replanificar_ruta()
+                return  # Finalizar el método aquí para evitar incrementar el contador de replanificaciones
             if self.contador_replanificaciones < self.LIMITE_REPLANIFICACIONES:
                 # Lógica actual para ceder o replanificar
                 if self.debe_ceder(otro_robot):
@@ -137,6 +166,17 @@ class RobotLimpieza(Agent):
             self.esperar()
             # O buscar una ruta completamente nueva
             self.planificar_ruta_nueva()
+        
+        def debe_ceder(self, otro_robot):
+            # El robot con menos batería debe ceder
+            if self.carga < otro_robot.carga:
+                return True
+            elif self.carga == otro_robot.carga:
+                # Si la carga de batería es la misma, el robot con el ID más alto debe ceder
+                return self.unique_id > otro_robot.unique_id
+            else:
+                return False
+
         
         def replanificar_ruta(self):
             # Decidir cuál ruta necesita ser replanificada
@@ -163,7 +203,7 @@ class RobotLimpieza(Agent):
 
         def detectar_colision(self, ruta_otro_robot):
             # Simple chequeo de colisión
-            return any(paso in ruta_otro_robot for paso in self.ruta_planeada)
+            return any(paso in ruta_otro_robot for paso in self.ruta_planeada) # Comprobar si hay algún paso en común
 
         def ir_a_estacion_carga(self):
             # Implementar la lógica para ir a la estación de carga más cercana
@@ -189,15 +229,34 @@ class RobotLimpieza(Agent):
 
 
         def encontrar_estacion_carga_mas_cercana(self):
-            # Simplificando: suponemos que hay una lista de estaciones en el modelo
             min_distancia = float('inf')
             estacion_cercana = None
             for estacion in self.model.estaciones_carga:
-                distancia = self.distancia_hasta(estacion.pos)
-                if distancia < min_distancia:
-                    min_distancia = distancia
-                    estacion_cercana = estacion
-            return estacion_cercana
+                if not estacion.reservada:
+                    distancia = self.distancia_hasta(estacion.pos)
+                    if distancia < min_distancia:
+                        min_distancia = distancia
+                        estacion_cercana = estacion
+            return estacion_cercana  # Solo retorna la estación más cercana sin reservarla
+        
+        def reservar_estacion_carga(self, estacion):
+            if estacion.reservada:
+                return False
+            estacion.reservada = True
+            self.estacion_reservada = estacion
+
+            self.comunicar_reserva_a_todos(estacion)
+            return True
+        def comunicar_reserva_a_todos(self,estacion):
+            # Enviar información de la estación de carga reservada a otros robots
+             for robot in self.model.schedule.agents:
+                if isinstance(robot, RobotLimpieza):
+                    robot.recibir_informacion_reserva(estacion)
+
+        def recibir_informacion_reserva(self,estacion):
+            # Reaccionar a la información de reserva recibida
+            if estacion.reservada and estacion not in self.estaciones_carga_reservadas:
+                self.estaciones_carga_reservadas.append(estacion)
 
         def encontrar_celda_sucia_mas_cercana(self):
             # Crear una cola y agregar la posición actual del robot
@@ -234,8 +293,8 @@ class RobotLimpieza(Agent):
             return abs(x1 - x2) + abs(y1 - y2)
            
         def actualizar_ruta(self):
-            # Comprobar si la ruta actual sigue siendo válida
-            if not self.ruta_es_valida():
+             # Comprobar si la ruta actual sigue siendo válida
+            if not self.ruta_es_valida() or (self.estacion_reservada and self.estacion_reservada.reservada and self.estacion_reservada.robot_reservante != self):
                 self.replanificar_ruta()
         
         def ruta_es_valida(self):
@@ -263,7 +322,6 @@ class RobotLimpieza(Agent):
             # Planifica una ruta hasta la celda sucia más cercana utilizando A*
 
         
-            self.ruta_planeada = self.algoritmo_a_estrella(self.pos, celda_mas_cercana.pos)
 
         def algoritmo_a_estrella(self, inicio, destino):
             frontera = PriorityQueue()
@@ -301,8 +359,9 @@ class RobotLimpieza(Agent):
                 x, y = pos[0] + dx, pos[1] + dy
                 if 0 <= x < self.model.grid.width and 0 <= y < self.model.grid.height:
                     if evitar_obstaculos and not self.model.grid.is_cell_empty((x, y)):
+                        vecinos.append((x, y))
                         continue
-                    vecinos.append((x, y))
+                    
             return vecinos
 
 
@@ -373,11 +432,8 @@ class Habitacion(Model):
               self.schedule.add(robot)       
 
           self.datacollector = DataCollector(
-               model_reporters={"Grid": Habitacion.get_grid, 
-                                "Cargas": Habitacion.get_cargas,
-                                "CeldasSucias": Habitacion.get_sucias, 
-                                "MovimientosTotales": Habitacion.get_movimientos_totales,
-                                "BateriaRestante": Habitacion.get_bateria},
+               model_reporters={"Grid": Habitacion.get_grid, "Cargas": Habitacion.get_cargas,
+                               "CeldasSucias": Habitacion.get_sucias},
           )
           self.agregar_estaciones_carga()
       
@@ -450,17 +506,6 @@ class Habitacion(Model):
       @staticmethod      
       def get_cargas(model: Model):
            return [(agent.unique_id, agent.carga) for agent in model.schedule.agents]
-
-      @staticmethod
-      def get_movimientos_totales(model: Model):
-            total_movimientos = sum(agent.movimientos for agent in model.schedule.agents if isinstance(agent, RobotLimpieza))
-            return total_movimientos
-      
-      @staticmethod
-      def get_bateria(model: Model):
-            carga_restante = sum(agent.carga for agent in model.schedule.agents if isinstance(agent, RobotLimpieza))
-            return carga_restante
-
       @staticmethod
       def get_sucias(model: Model) -> int:
             sum_sucias = 0
@@ -475,3 +520,11 @@ class Habitacion(Model):
                 return {agent.unique_id: agent.movimientos}
                         # else:
                         #    return 0   
+                       
+                   
+
+            
+
+            
+
+        
