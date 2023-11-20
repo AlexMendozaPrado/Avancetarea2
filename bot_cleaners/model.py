@@ -29,6 +29,9 @@ class Estante(Agent):
 class Banda(Agent):
     def __init__(self,unique_id,model, robot_id = None):
         super().__init__(unique_id,model)
+        self.tiene_caja = False
+        
+
 
 
 class EstacionCarga(Agent):
@@ -427,7 +430,7 @@ class Habitacion(Model):
           self.porc_celdas_sucias = porc_celdas_sucias
           self.porc_muebles = porc_muebles
           self.estantes = []
-
+          self.cajas = []
           self.grid = MultiGrid(M, N, False)
           self.schedule = SimultaneousActivation(self)
 
@@ -461,39 +464,15 @@ class Habitacion(Model):
               self.grid.place_agent(cargador, pos)
               posiciones_disponibles.remove(pos)
 
+        # Iniciar cajas
+
+          
         # Posicionamiento de muebles
-          num_muebles = int(M * N * porc_muebles)
-          posiciones_muebles = self.random.sample(posiciones_disponibles, k=num_muebles)
-          for id, pos in enumerate(posiciones_muebles):
-              mueble = Mueble(int(f"{num_agentes}0{id}") + 1, self)
-              self.grid.place_agent(mueble, pos)
-              posiciones_disponibles.remove(pos)
-
-                # Posicionamiento de celdas sucias
-          self.num_celdas_sucias = int(M * N * porc_celdas_sucias)
-          posiciones_celdas_sucias = self.random.sample(
-          posiciones_disponibles, k=self.num_celdas_sucias)
-
-          for id, pos in enumerate(posiciones_disponibles):
-              suciedad = pos in posiciones_celdas_sucias
-              celda = Celda(int(f"{num_agentes}{id}") + 1, self, suciedad)
-              self.grid.place_agent(celda, pos)
-
-                # Posicionamiento de agentes robot
-          if modo_pos_inicial == 'Aleatoria':
-             pos_inicial_robots = self.random.sample(posiciones_disponibles, k=num_agentes)
-          else:  # 'Fija'
-               pos_inicial_robots = [(1, 1)] * num_agentes
           
           for pos in posiciones_cargadores:
               robot = RobotLimpieza(self.next_id(), self)
               self.grid.place_agent(robot, pos)
               self.schedule.add(robot)       
-
-          self.datacollector = DataCollector(
-               model_reporters={"Grid": Habitacion.get_grid, "Cargas": Habitacion.get_cargas,
-                               "CeldasSucias": Habitacion.get_sucias},
-          )
       
       def is_cell_empty(self, pos):
           """
@@ -542,7 +521,6 @@ class Habitacion(Model):
             return self.random.choice(posiciones_disponibles)
 
       def step(self):
-          self.datacollector.collect(self)
           self.schedule.step()
       def todoLimpio(self):
             for (content, x, y) in self.grid.coord_iter():
