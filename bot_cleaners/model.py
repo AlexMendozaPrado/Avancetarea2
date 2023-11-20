@@ -22,7 +22,7 @@ class Caja(Agent):
 
 
 class Estante(Agent):
-    def __init__(self,unique_id,model):
+    def __init__(self,unique_id,model, robot_id = None):
         super().__init__(unique_id,model)
         
 
@@ -439,6 +439,13 @@ class Habitacion(Model):
               self.grid.place_agent(banda, pos)
               posiciones_disponibles.remove(pos)
 
+        #Posicionamiento estantes
+          posiciones_estantes = [(3,7), (5,7), (7, 7), (9, 7), (11, 7)]
+          for pos in posiciones_estantes:
+              estante = Estante(self.next_id(), self)
+              self.grid.place_agent(estante, pos)
+              posiciones_disponibles.remove(pos)
+
         # Posicionamiento de muebles
           num_muebles = int(M * N * porc_muebles)
           posiciones_muebles = self.random.sample(posiciones_disponibles, k=num_muebles)
@@ -519,13 +526,6 @@ class Habitacion(Model):
             posiciones_disponibles = [pos for pos in posiciones_disponibles if self.is_cell_empty(pos)]
                     # Escoger una posición aleatoria de las disponibles
             return self.random.choice(posiciones_disponibles)
-      
-      def agregar_estantes(self):
-            estante1 = Estante(101, self)
-            self.grid.place_agent(estante1, (7, 3))
-            self.estantes.append(estante1)
-            
-
 
       def step(self):
           self.datacollector.collect(self)
