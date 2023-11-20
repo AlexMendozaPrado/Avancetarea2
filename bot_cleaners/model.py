@@ -81,19 +81,32 @@ class RobotLimpieza(Agent):
 
         def step(self):
             # Si el robot está cargando, incrementar la batería
-            if self.estoy_cargando() == True :
+            if self.estoy_cargando() == True:
                 self.carga = min(100, self.carga + 25)  # Suponiendo que se carga un 25% por step
                 return  # No hacer más acciones si está cargando
 
             # Planificar ruta hacia celda sucia si no hay ruta planeada
             if not self.ruta_planeada:
-                celda_sucia = self.encontrar_celda_sucia_mas_cercana() ###cAMBIAR POR RECOGER CAJA
-                if celda_sucia is not None:
-                    self.ruta_planeada = [celda_sucia]
-                    #print("ruta planeada" + str(self.ruta_planeada))
-                else:
-                    self.ruta_planeada = []
-                self.verificar_ruta()
+                # TODO: Robot mas cercano se dirige a la banda de su ID
+                # celda_sucia = self.encontrar_celda_sucia_mas_cercana() ###cAMBIAR POR RECOGER CAJA
+                # if celda_sucia is not None:
+                #     self.ruta_planeada = [celda_sucia]
+                #     #print("ruta planeada" + str(self.ruta_planeada))
+                # else:
+                #     self.ruta_planeada = []
+                # self.verificar_ruta()
+                # TODO: Robot en estación de recolección recoge la caja
+                # Si el robot es vecino de la caja con su ID, cambia la posicion de la caja a la misma posicion del robot
+                if self.pos == self.model.caja.pos and self.unique_id == self.model.caja.unique_id:
+                    self.model.caja.pos = self.pos
+                    # self.model.caja.sig_pos = self.pos
+                    print("La caja se encuentra en la posicion del robot")
+
+                # TODO: Robot con caja se dirige a el estante con el ID de la caja
+                # Busca la posicion del estante con el mismo ID que la caja
+
+
+                # TODO: Robot entrega la caja en el estante
                 #si tiene batteria para ir por la caja, dejarla, y luego cargarse, ir por la caja, si no cargarse
 
 
@@ -412,6 +425,7 @@ class Habitacion(Model):
           self.num_agentes = num_agentes
           self.porc_celdas_sucias = porc_celdas_sucias
           self.porc_muebles = porc_muebles
+          self.estantes = []
 
           self.grid = MultiGrid(M, N, False)
           self.schedule = SimultaneousActivation(self)
@@ -497,6 +511,14 @@ class Habitacion(Model):
             posiciones_disponibles = [pos for pos in posiciones_disponibles if self.is_cell_empty(pos)]
                     # Escoger una posición aleatoria de las disponibles
             return self.random.choice(posiciones_disponibles)
+      
+      def agregar_estantes(self):
+            estante1 = Estante(101, self)
+            self.grid.place_agent(estante1, (7, 3))
+            self.estantes.append(estante1)
+            
+
+
       def step(self):
           self.datacollector.collect(self)
           self.schedule.step()
