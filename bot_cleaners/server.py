@@ -4,7 +4,7 @@ import mesa
 
 from .model import Habitacion, RobotLimpieza, Celda, Mueble, EstacionCarga, Banda, Estante
 
-MAX_NUMBER_ROBOTS = 20
+MAX_NUMBER_ROBOTS = 10
 
 
 def agent_portrayal(agent):
@@ -35,23 +35,8 @@ def agent_portrayal(agent):
 
 
 grid = mesa.visualization.CanvasGrid(
-    agent_portrayal, 15, 15, 400, 400)
+    agent_portrayal, 15, 15, 350, 350)
 
-chart_celdas = mesa.visualization.ChartModule(
-    [{"Label": "CeldasSucias", "Color": '#36A2EB', "label": "Celdas Sucias"}],
-    50, 200,
-    data_collector_name="datacollector"
-)
-
-chart_movimientos = mesa.visualization.ChartModule(
-    [{"Label": "MovimientosTotales", "Color": "green"}],
-    data_collector_name = "datacollector"
-)
-
-chart_bateria = mesa.visualization.ChartModule(
-    [{"Label": "BateriaRestante", "Color": "Blue"}],
-    data_collector_name = "datacollector"
-)
 
 model_params = {
     "num_agentes": mesa.visualization.Slider(
@@ -89,6 +74,6 @@ model_params = {
 } 
 
 server = mesa.visualization.ModularServer(
-    Habitacion, [grid, chart_celdas, chart_movimientos, chart_bateria],
+    Habitacion, [grid],
     "botCleaner", model_params, 8526
 )
