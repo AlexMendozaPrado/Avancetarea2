@@ -419,10 +419,26 @@ class Habitacion(Model):
 
           posiciones_disponibles = [pos for _, pos in self.grid.coord_iter()]
         # Posicionamiento de bandas
-          posiciones_banda_entrada = [(0,0), (1,0), (2, 0), (3, 0), (4, 0)]
+          posiciones_banda_entrada = [(3,14), (5,14), (7,14), (9,14), (11,14)]
           for pos in posiciones_banda_entrada:
               banda = Banda(self.next_id(), self)
               self.grid.place_agent(banda, pos)
+              posiciones_disponibles.remove(pos)
+
+        #Posicionamiento de cargadores
+          posiciones_cargadores = []
+          pos_y_cargador = 11
+          for i in range(num_agentes):
+              if i % 2 == 0:
+                  pos = (0, pos_y_cargador)
+                  posiciones_cargadores.append(pos)
+              else:
+                  pos = (14, pos_y_cargador)
+                  posiciones_cargadores.append(pos)
+                  pos_y_cargador -= 2
+
+              cargador = EstacionCarga(self.next_id(), self)
+              self.grid.place_agent(cargador, pos)
               posiciones_disponibles.remove(pos)
 
         # Posicionamiento de muebles
@@ -449,16 +465,15 @@ class Habitacion(Model):
           else:  # 'Fija'
                pos_inicial_robots = [(1, 1)] * num_agentes
           
-          for id in range(num_agentes):
+          for pos in posiciones_cargadores:
               robot = RobotLimpieza(self.next_id(), self)
-              self.grid.place_agent(robot, pos_inicial_robots[id])
+              self.grid.place_agent(robot, pos)
               self.schedule.add(robot)       
 
           self.datacollector = DataCollector(
                model_reporters={"Grid": Habitacion.get_grid, "Cargas": Habitacion.get_cargas,
                                "CeldasSucias": Habitacion.get_sucias},
           )
-          self.agregar_estaciones_carga()
       
       def is_cell_empty(self, pos):
           """
