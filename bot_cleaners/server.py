@@ -2,7 +2,7 @@ import random
 
 import mesa
 
-from .model import Habitacion, RobotLimpieza, Celda, Mueble, EstacionCarga, Banda
+from .model import Habitacion, RobotLimpieza, Celda, Mueble, EstacionCarga, Banda, Estante
 
 MAX_NUMBER_ROBOTS = 20
 
@@ -29,6 +29,9 @@ def agent_portrayal(agent):
     elif isinstance(agent, Banda):
         return {"Shape": "rect", "Filled": "true", "Color": "red", "Layer": 0,
                 "w": 0.9, "h": 0.9, "text": "🚧", "text_color": "Black"}
+    elif isinstance(agent, Estante):
+        return {"Shape": "rect", "Filled": "true", "Color": "grey", "Layer": 0,
+                "w": 0.9, "h": 0.9, "text": "🗄️", "text_color": "Black"}
 
 
 grid = mesa.visualization.CanvasGrid(
