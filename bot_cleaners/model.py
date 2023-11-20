@@ -24,23 +24,22 @@ class Caja(Agent):
 
 
 class Estante(Agent):
-    def __init__(self,unique_id,model, robot_id = None):
+    def __init__(self,unique_id,model):
         super().__init__(unique_id,model)
         
 
 class Banda(Agent):
-    def __init__(self,unique_id,model, robot_id = None):
+    def __init__(self,unique_id,model):
         super().__init__(unique_id,model)
         self.tiene_caja = False
-        self.robot_id = robot_id
+        self.caja_recoger = None
     def step(self):
         if not self.tiene_caja:
-            nueva_caja = self.model.cajas.pop(0) if len(self.model.cajas) > 0 else None
+            nueva_caja = self.model.crear_caja()
             if nueva_caja:
-                self.model.grid.place_agent(nueva_caja, self.pos)
+                self.model.poner_caja(self.pos, nueva_caja)
                 self.tiene_caja = True
-                self.robot_id = nueva_caja.estante_id
-                self.model.schedule.add(nueva_caja)
+                self.caja_recoger = nueva_caja
 
 
 
@@ -437,40 +436,43 @@ class Habitacion(Model):
           self.porc_celdas_sucias = porc_celdas_sucias
           self.porc_muebles = porc_muebles
           self.ids_estantes = []
-          self.cajas = []
+          self.cajas_estante = {}
           self.grid = MultiGrid(M, N, False)
           self.schedule = SimultaneousActivation(self)
           self.posiciones_cargadores = []
           self.num_agentes = num_agentes
+          self.id_robot = 1
 
           self.iniciar_bandas()
           self.iniciar_estantes()
           self.iniciar_cargadores()
           self.iniciar_robots()
-          self.iniciar_cajas()
         # Iniciar cajas
-          self.iniciar_cajas()
-
           
-      def iniciar_cajas(self):
-        cajas_estante = {}
-        for _ in range(15):
-            id_estante = None
-            while True:
-                id_estante = random.choice(self.ids_estantes)
-                if id_estante not in cajas_estante or cajas_estante[id_estante] <= 3:
-                    break
-            if id_estante not in cajas_estante:
-                cajas_estante[id_estante] = 1
-            else:
-                cajas_estante[id_estante] += 1
-            caja = Caja(self.next_id(), self, id_estante)
-            self.cajas.append(caja)    
+      def poner_caja(self, pos, caja):
+            #self.grid.place_agent(caja, pos)
+            self.schedule.add(caja)
 
-            
+      def crear_caja(self):
+          id_estante = None
+          while True:
+                id_estante = random.choice(self.ids_estantes)
+                if id_estante not in self.cajas_estante or self.cajas_estante[id_estante] <= 3:
+                    break
+          if id_estante not in self.cajas_estante:
+                self.cajas_estante[id_estante] = 1
+          else:
+                self.cajas_estante[id_estante] += 1
+          caja = Caja(self.next_id(), self, id_estante)
+          return caja
       def iniciar_robots(self):
           for pos in self.posiciones_cargadores:
-              robot = RobotLimpieza(self.next_id(), self)
+              next_id = self.next_id()
+              id_estacion_robot = self.id_robot
+              self.id_robot += 1
+              if self.id_robot > 5:
+                  self.id_robot = 1
+              robot = RobotLimpieza(next_id, self, id_estacion_robot)
               self.grid.place_agent(robot, pos)
               self.schedule.add(robot)      
 
@@ -551,6 +553,7 @@ class Habitacion(Model):
 
       def step(self):
           self.schedule.step()
+
       def todoLimpio(self):
             for (content, x, y) in self.grid.coord_iter():
                     for obj in content:
