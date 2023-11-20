@@ -15,6 +15,21 @@ class Celda(Agent):
         super().__init__(unique_id, model)
         self.sucia = sucia
 
+class Caja(Agent):
+    def _init_(self,unique_id,model):
+        super().__init__(unique_id,model)
+        self.sig_pos = None
+
+
+class Estante(Agent):
+    def _init_(self,unique_id,model):
+        super().__init__(unique_id,model)
+        
+
+class Banda(Agent):
+    def _init_(self,unique_id,model):
+        super().__init__(unique_id,model)
+        
 
 class EstacionCarga(Agent):
       def __init__(self, unique_id, model):
