@@ -2,21 +2,21 @@ import random
 
 import mesa
 
-from .model import Habitacion, RobotLimpieza, Celda, Mueble, EstacionCarga, Banda, Estante
+from .model import Habitacion, RobotLimpieza, Celda, Mueble, EstacionCarga, Banda, Estante, Caja
 
 MAX_NUMBER_ROBOTS = 10
 
 
 def agent_portrayal(agent):
     if isinstance(agent, RobotLimpieza):
-        return {"Shape": "circle", "Filled": "false", "Color": "black", "Layer": 1, "r": 1.0,
-                "text": f"{agent.carga}", "text_color": "yellow"}
+        return {"Shape": "circle", "Filled": "false", "Color": "black", "Layer": 0, "r": 1.0,
+                "text": f"{agent.banda_id}", "text_color": "yellow"}
     elif isinstance(agent, Mueble):
         return {"Shape": "rect", "Filled": "true", "Color": "white", "Layer": 0,
-                "w": 0.9, "h": 0.9, "text_color": "Black", "text": "🪑"}
+                "w": 0.9, "h": 0.9, "text_color": "Black", "text": f"{agent.unique_id}"}
     elif isinstance(agent, EstacionCarga):
         return {"Shape": "rect", "Filled": "true", "Color": "blue", "Layer": 0,
-                "w": 0.9, "h": 0.9, "text": "⚡", "text_color": "Black"}
+                "w": 0.9, "h": 0.9, "text": f"{agent.unique_id}", "text_color": "Black"}
     elif isinstance(agent, Celda):
         portrayal = {"Shape": "rect", "Filled": "true", "Layer": 0, "w": 0.9, "h": 0.9, "text_color": "Black"}
         if agent.sucia:
@@ -24,21 +24,23 @@ def agent_portrayal(agent):
             portrayal["text"] = "🦠"
         else:
             portrayal["Color"] = "white"
-            portrayal["text"] = ""
+            portrayal["text"] = f"{agent.unique_id}"
         return portrayal
     elif isinstance(agent, Banda):
-        portrayal = {"Shape": "rect", "Filled": "true", "Layer": "1", "w": 0.9, "h": 0.9, "text_color": "Red"}
+        portrayal = {"Shape": "rect", "Filled": "true", "Layer": "1", "w": 0.9, "h": 0.9, "text_color": "Black"}
         if agent.tiene_caja:
-            portrayal["Color"] = "Brown"
-            portrayal["text"] = "📦"
+            portrayal["Color"] = "Yellow"
+            portrayal["text"] = f"{agent.caja_recoger.estante_id}"
         else:
             portrayal["Color"] = "Red"
-            portrayal["text"] = ""
+            portrayal["text"] = f"{agent.unique_id}"
         return portrayal
     elif isinstance(agent, Estante):
         return {"Shape": "rect", "Filled": "true", "Color": "grey", "Layer": 0,
-                "w": 0.9, "h": 0.9, "text": "🗄️", "text_color": "Black"}
-
+                "w": 0.9, "h": 0.9, "text": f"{agent.unique_id}", "text_color": "Black"}
+    elif isinstance(agent, Caja):
+        return {"Shape": "circle", "Filled": "true", "Color": "brown", "Layer": 2,
+                "w": 0.9, "h": 0.9, "text": "📦", "text_color": "Black"}
 
 grid = mesa.visualization.CanvasGrid(
     agent_portrayal, 15, 15, 350, 350)
@@ -81,5 +83,5 @@ model_params = {
 
 server = mesa.visualization.ModularServer(
     Habitacion, [grid],
-    "botCleaner", model_params, 8526
+    "botCleaner", model_params, 8525
 )
