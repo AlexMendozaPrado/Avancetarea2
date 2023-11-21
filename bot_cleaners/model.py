@@ -36,6 +36,7 @@ class Banda(Agent):
     def step(self):
         if not self.tiene_caja:
             nueva_caja = self.model.crear_caja()
+            nueva_caja.pos = self.pos
             if nueva_caja:
                 self.model.poner_caja(self.pos, nueva_caja)
                 self.tiene_caja = True
@@ -101,6 +102,22 @@ class RobotLimpieza(Agent):
             # Planificar ruta hacia celda sucia si no hay ruta planeada
             if not self.ruta_planeada:
                 # TODO: Robot mas cercano se dirige a la banda de su ID
+                # Busca la banda con el mismo ID que el robot
+                # Imprime todos los ids de las bandas
+                for banda in self.model.schedule.agents:
+                    if isinstance(banda, Banda):
+                        print(banda.unique_id)
+                        if banda.unique_id == self.banda_id:
+                            print("ID Match")
+                            print(banda.pos)
+                            # Cambia banda.pos en y-1
+                            punto_recoleccion = (banda.pos[0], banda.pos[1] - 1)
+                            print(punto_recoleccion)
+                            self.ruta_planeada = self.algoritmo_a_estrella(self.pos, punto_recoleccion)
+                            
+                            print(self.ruta_planeada)
+                            
+
                 # celda_sucia = self.encontrar_celda_sucia_mas_cercana() ###cAMBIAR POR RECOGER CAJA
                 # if celda_sucia is not None:
                 #     self.ruta_planeada = [celda_sucia]
@@ -110,17 +127,26 @@ class RobotLimpieza(Agent):
                 # self.verificar_ruta()
                 # TODO: Robot en estación de recolección recoge la caja
                 # Si el robot es vecino de la caja con su ID, cambia la posicion de la caja a la misma posicion del robot
-                if self.pos == self.model.caja.pos and self.unique_id == self.model.caja.unique_id:
-                    self.model.caja.pos = self.pos
-                    # self.model.caja.sig_pos = self.pos
-                    print("La caja se encuentra en la posicion del robot")
+                for caja in self.model.schedule.agents:
+                    if isinstance(caja, Caja):
+                        print(caja.unique_id)
+                        print(caja.pos)
+
+
+                        if (self.son_vecinos_ortogonales(caja)):
+                            caja.pos = self.pos
+                            # self.model.caja.sig_pos = self.pos
+                            print("La caja se encuentra en la posicion del robot")
 
                 # TODO: Robot con caja se dirige a el estante con el ID de la caja
                 # Busca la posicion del estante con el mismo ID que la caja
+                estante = self.model.estantes[self.model.caja.estante_id - 1]
+                self.ruta_planeada = self.algoritmo_a_estrella(self.pos, estante.pos)
+                print(self.ruta_planeada)
 
 
                 # TODO: Robot entrega la caja en el estante
-                #si tiene batteria para ir por la caja, dejarla, y luego cargarse, ir por la caja, si no cargarse
+                #si tiene bateria para ir por la caja, dejarla, y luego cargarse, ir por la caja, si no cargarse
 
 
             # Verificar nivel de batería y planificar ruta hacia estación de carga si es necesario
@@ -141,6 +167,34 @@ class RobotLimpieza(Agent):
             self.comunicar_ruta()
             self.actualizar_ruta()
             #self.resolver_deadlocks()
+
+        def son_vecinos_ortogonales(self, agente2):
+            """
+            Determina si dos agentes son vecinos en una cuadrícula.
+
+            :param self: El primer agente.
+            :param agente2: El segundo agente.
+            :return: True si los agentes son vecinos, False en caso contrario.
+            """
+            # Obtener las posiciones de los agentes
+            x1, y1 = self.pos
+            """
+            print("============================")
+            print("============================")
+            print(agente2.pos)
+            print("============================")
+            print("============================")
+            """
+            
+            x2, y2 = agente2.pos
+
+            # Calcular la diferencia absoluta en las coordenadas x e y
+            diff_x = abs(x1 - x2)
+            diff_y = abs(y1 - y2)
+
+            # Los agentes son vecinos si están en celdas adyacentes ortogonalmente
+            return diff_x + diff_y == 1
+        
         def verificar_ruta(self):
             for pos in self.ruta_planeada:
                 if not (0 <= pos[0] < self.model.grid.width and
@@ -399,7 +453,7 @@ class RobotLimpieza(Agent):
             for dx, dy in direcciones:
                 x, y = pos[0] + dx, pos[1] + dy
                 if 0 <= x < self.model.grid.width and 0 <= y < self.model.grid.height:
-                    if evitar_obstaculos and not self.model.grid.is_cell_empty((x, y)):
+                    if evitar_obstaculos and self.model.grid.is_cell_empty((x, y)):
                         vecinos.append((x, y))
                         continue
                     
@@ -452,7 +506,7 @@ class Habitacion(Model):
         # Iniciar cajas
           
       def poner_caja(self, pos, caja):
-            #self.grid.place_agent(caja, pos)
+            self.grid.place_agent(caja, pos)
             self.schedule.add(caja)
 
       def crear_caja(self):
@@ -467,6 +521,7 @@ class Habitacion(Model):
                 self.cajas_estante[id_estante] += 1
           caja = Caja(self.next_id(), self, id_estante)
           return caja
+      
       def iniciar_robots(self):
           for pos in self.posiciones_cargadores:
               next_id = self.next_id()
@@ -520,7 +575,7 @@ class Habitacion(Model):
 
                 # Considera la celda "vacía" si solo contiene agentes que no bloquean el movimiento
           for agent in cell_contents:
-              if isinstance(agent, (Mueble, RobotLimpieza, EstacionCarga)):
+              if isinstance(agent, (RobotLimpieza, EstacionCarga, Estante, Banda)):
                  return False  # La celda está bloqueada
 
           return True  # La celda contiene agentes, pero son del tipo no bloqueante
