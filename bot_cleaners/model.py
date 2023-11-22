@@ -99,55 +99,30 @@ class RobotLimpieza(Agent):
                 self.carga = min(100, self.carga + 25)  # Suponiendo que se carga un 25% por step
                 return  # No hacer más acciones si está cargando
 
+
             # Planificar ruta hacia celda sucia si no hay ruta planeada
-            if not self.ruta_planeada:
-                # TODO: Robot mas cercano se dirige a la banda de su ID
-                # Busca la banda con el mismo ID que el robot
-                # Imprime todos los ids de las bandas
-                for banda in self.model.schedule.agents:
-                    if isinstance(banda, Banda):
-                        print(banda.unique_id)
-                        if banda.unique_id == self.banda_id:
-                            print("ID Match")
-                            print(banda.pos)
-                            # Cambia banda.pos en y-1
-                            punto_recoleccion = (banda.pos[0], banda.pos[1] - 1)
-                            print(punto_recoleccion)
-                            self.ruta_planeada = self.algoritmo_a_estrella(self.pos, punto_recoleccion)
-                            
-                            print(self.ruta_planeada)
-                            
+            # if not self.ruta_planeada:
+            #     # TODO: Robot mas cercano se dirige a la banda de su ID
+            #     # celda_sucia = self.encontrar_celda_sucia_mas_cercana() ###cAMBIAR POR RECOGER CAJA
+            #     # if celda_sucia is not None:
+            #     #     self.ruta_planeada = [celda_sucia]
+            #     #     #print("ruta planeada" + str(self.ruta_planeada))
+            #     # else:
+            #     #     self.ruta_planeada = []
+            #     # self.verificar_ruta()
+            #     # TODO: Robot en estación de recolección recoge la caja
+            #     # Si el robot es vecino de la caja con su ID, cambia la posicion de la caja a la misma posicion del robot
+            #     if self.pos == self.model.caja.pos and self.unique_id == self.model.caja.unique_id:
+            #         self.model.caja.pos = self.pos
+            #         # self.model.caja.sig_pos = self.pos
+            #         print("La caja se encuentra en la posicion del robot")
 
-                # celda_sucia = self.encontrar_celda_sucia_mas_cercana() ###cAMBIAR POR RECOGER CAJA
-                # if celda_sucia is not None:
-                #     self.ruta_planeada = [celda_sucia]
-                #     #print("ruta planeada" + str(self.ruta_planeada))
-                # else:
-                #     self.ruta_planeada = []
-                # self.verificar_ruta()
-                # TODO: Robot en estación de recolección recoge la caja
-                # Si el robot es vecino de la caja con su ID, cambia la posicion de la caja a la misma posicion del robot
-                for caja in self.model.schedule.agents:
-                    if isinstance(caja, Caja):
-                        print(caja.unique_id)
-                        print(caja.pos)
+            #     # TODO: Robot con caja se dirige a el estante con el ID de la caja
+            #     # Busca la posicion del estante con el mismo ID que la caja
 
 
-                        if (self.son_vecinos_ortogonales(caja)):
-                            caja.pos = self.pos
-                            # self.model.caja.sig_pos = self.pos
-                            print("La caja se encuentra en la posicion del robot")
-
-                # TODO: Robot con caja se dirige a el estante con el ID de la caja
-                # Busca la posicion del estante con el mismo ID que la caja
-                estante = self.model.estantes[self.model.caja.estante_id - 1]
-                self.ruta_planeada = self.algoritmo_a_estrella(self.pos, estante.pos)
-                print(self.ruta_planeada)
-
-
-                # TODO: Robot entrega la caja en el estante
-                #si tiene bateria para ir por la caja, dejarla, y luego cargarse, ir por la caja, si no cargarse
-
+            #     # TODO: Robot entrega la caja en el estante
+            #     #si tiene batteria para ir por la caja, dejarla, y luego cargarse, ir por la caja, si no cargarse
 
             # Verificar nivel de batería y planificar ruta hacia estación de carga si es necesario
             if self.carga < self.umbral_bateria and not self.estacion_reservada: 
